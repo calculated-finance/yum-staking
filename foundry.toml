@@ -3,4 +3,14 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
+optimizer=true
+optimizer_runs=20000
+
+[rpc_endpoints]
+arbitrum = "https://arbitrum-mainnet.infura.io/v3/a0b21bb670ee47baaa06591e157dcb3a"
+
+[etherscan]
+arbitrum = { key = "${ARBISCAN_API_KEY}" }
+
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

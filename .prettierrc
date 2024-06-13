@@ -1,0 +1,14 @@
+{
+  "printWidth": 130,
+  "semi": false,
+  "bracketSameLine": true,
+  "overrides": [
+    {
+      "files": "*.sol",
+      "options": {
+        "printWidth": 160,
+        "tabWidth": 2
+      }
+    }
+  ]
+}
