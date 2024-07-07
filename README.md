@@ -8,26 +8,19 @@ The CacaoStaking contract is designed to allow users to stake a specific ERC20 t
 
 ### Deposit Assets:
 
-Users can deposit the specified ERC20 asset into the contract.
-In return for their deposit, they receive shares that represent their stake in the contract.
-The amount of shares received is proportional to the amount of assets deposited.
+Users can deposit the specified ERC20 asset into the contract.In return for their deposit, they receive shares that represent their stake in the contract. The amount of shares received is proportional to the amount of assets deposited.
 
 ### Mint Shares:
 
-Users can choose to mint a specific number of shares by depositing the corresponding amount of assets.
-This allows users to specify the number of shares they want to receive rather than the amount of assets they want to deposit.
+Users can choose to mint a specific number of shares by depositing the corresponding amount of assets. This allows users to specify the number of shares they want to receive rather than the amount of assets they want to deposit.
 
 ### Withdraw Assets:
 
-Users can withdraw a specified amount of assets from the contract.
-To do this, they need to burn the equivalent amount of shares they hold.
-The contract calculates the number of shares required to withdraw the requested amount of assets.
+Users can withdraw a specified amount of assets from the contract.To do this, they need to burn the equivalent amount of shares they hold. The contract calculates the number of shares required to withdraw the requested amount of assets.
 
 ### Redeem Shares:
 
-Users can redeem their shares for the underlying assets.
-The contract calculates the amount of assets corresponding to the number of shares being redeemed and transfers these assets to the user.
-This process also involves burning the redeemed shares.
+Users can redeem their shares for the underlying assets. The contract calculates the amount of assets corresponding to the number of shares being redeemed and transfers these assets to the user. This process also involves burning the redeemed shares.
 
 ### Staking and Shares:
 
@@ -37,3 +30,4 @@ Shares are a representation of the user’s stake and can be redeemed or used to
 ### Asset Conversion:
 
 The contract includes functions to convert between assets and shares, ensuring that users can easily determine the amount of shares they will receive for a given deposit or the amount of assets they will receive for a given redemption.
+
