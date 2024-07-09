@@ -9,13 +9,13 @@ import {MockToken} from "../src/MockToken.sol";
 contract CounterTest is Test {
   CacaoStaking public staking;
   IERC20 asset;
-  address deplotyer = makeAddr("receiver");
+  address deployer = makeAddr("deployer");
   address user1 = makeAddr("user1");
   address user2 = makeAddr("user2");
 
   function setUp() public {
     asset = IERC20(address(new MockToken()));
-    staking = new CacaoStaking(asset);
+    staking = new CacaoStaking(asset, deployer);
     console.log("CacaoStaking deployed at: ", address(staking));
   }
 }

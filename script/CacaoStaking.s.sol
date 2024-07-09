@@ -22,7 +22,7 @@ contract CacaoStakingDeploy is Script {
     console.log("mockToken deployed to: ", address(mockToken));
     console.log("mockToken balance of owner is: ", mockToken.balanceOf(account));
 
-    staking = new CacaoStaking(IERC20(address(mockToken)));
+    staking = new CacaoStaking(IERC20(address(mockToken)), account);
     console.log("Staking contract deployed to: ", address(staking));
 
     vm.stopBroadcast();

@@ -2,18 +2,18 @@
 pragma solidity 0.8.23;
 
 import {IERC20} from "./interfaces/IERC20.sol";
-// import {IERC4626} from "./interfaces/IERC4626.sol";
 import {ERC20Vote} from "./lib/ERC20Vote.sol";
 import {SafeTransferLib} from "./lib/SafeTransferLib.sol";
 import {FixedPointMathLib} from "./lib/FixedPointMathLib.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title CacaoStaking
  * @notice A staking contract that allows users to deposit an asset and receive shares in return.
  * @dev The contract is mainly a fork of vTHOR staking contract (https://github.com/thorswap/evm-contracts/blob/main/src/contracts/tokens/vTHOR.sol)
  */
-contract CacaoStaking is ERC20Vote, ReentrancyGuard {
+contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   using SafeTransferLib for address;
   using FixedPointMathLib for uint256;
 
@@ -32,7 +32,7 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard {
    * @dev Initializes the staking contract with the given asset.
    * @param asset_ The asset to be staked.
    */
-  constructor(IERC20 asset_) ERC20Vote("CacaoSwapStaking", "CSST", 18) {
+  constructor(IERC20 asset_, address initialOwner) ERC20Vote("CacaoSwapStaking", "CSST", 18) Ownable(initialOwner) {
     _asset = asset_;
   }
 
@@ -254,7 +254,7 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard {
     uint256 timeOfRequest;
   }
 
-  function setCooldownPeriod(uint256 timeInSeconds) external {
+  function setCooldownPeriod(uint256 timeInSeconds) external onlyOwner {
     cooldownPeriod = timeInSeconds;
   }
 
