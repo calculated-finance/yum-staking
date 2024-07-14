@@ -238,7 +238,7 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   error RequestAlreadyProcessed();
   event CooldownPeriodUpdated(uint256 newCooldownPeriod);
 
-  uint256 globalIds;
+  uint256 public globalIds;
   uint256 public cooldownPeriod;
   mapping(address user => mapping(uint256 id => Request)) public requests;
 
@@ -248,11 +248,19 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
     bool processed;
   }
 
+  /**
+   * @notice Sets the cooldown period for withdrawal requests.
+   * @param timeInSeconds The new cooldown period in seconds.
+   */
   function setCooldownPeriod(uint256 timeInSeconds) external onlyOwner {
     emit CooldownPeriodUpdated(timeInSeconds);
     cooldownPeriod = timeInSeconds;
   }
 
+  /**
+   * @notice Requests to withdraw or redeem a given amount of assets.
+   * @param amount The amount of assets to withdraw or redeem.
+   */
   function requestWithdrawOrRedeem(uint256 amount) external {
     if (balanceOf[msg.sender] < amount) revert InsufficientBalance();
     requests[msg.sender][globalIds] = Request(amount, block.timestamp, false);
@@ -260,16 +268,15 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
     ++globalIds;
   }
 
+  /**
+   * @notice Processes a withdrawal request.
+   * @param id The id of the request.
+   */
   function _processAndVerifyCooldownPeriod(uint256 id) internal {
     Request storage request = requests[msg.sender][id];
     if (request.processed) revert RequestAlreadyProcessed();
     if (block.timestamp < request.timeOfRequest + cooldownPeriod) revert WithdrawalRequestNotReady();
     if (request.amount == 0) revert InvalidAmount();
-    emit log(block.timestamp);
-    emit log(request.timeOfRequest + cooldownPeriod);
     request.processed = true;
   }
-
-  event log(string);
-  event log(uint);
 }
