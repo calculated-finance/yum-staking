@@ -32,8 +32,9 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
    * @dev Initializes the staking contract with the given asset.
    * @param asset_ The asset to be staked.
    */
-  constructor(IERC20 asset_, address initialOwner) ERC20Vote("CacaoSwapStaking", "CSST", 18) Ownable(initialOwner) {
+  constructor(IERC20 asset_, address initialOwner, uint256 _cooldownPeriod) ERC20Vote("CacaoSwapStaking", "CSST", 18) Ownable(initialOwner) {
     _asset = asset_;
+    cooldownPeriod = _cooldownPeriod;
   }
 
   /* -------------------------------------------------------------------------- */
@@ -181,14 +182,14 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
 
   /**
    * @notice Withdraws a given amount of assets by burning the equivalent amount of shares.
-   * @param assets The amount of assets to withdraw.
    * @param receiver The address receiving the assets.
    * @param owner The address of the shares' owner.
    * @return shares The amount of shares burned.
    */
-  function withdraw(uint256 assets, address receiver, address owner, uint256 id) public nonReentrant returns (uint256 shares) {
+  function withdraw(address receiver, address owner, uint256 id) public nonReentrant returns (uint256 shares) {
     /* ---------------------------------- added --------------------------------- */
-    _verifyCooldownPeriod(id);
+    _processAndVerifyCooldownPeriod(id);
+    uint assets = requests[msg.sender][id].amount;
     /* ---------------------------------- added --------------------------------- */
 
     shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
@@ -203,14 +204,15 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
 
   /**
    * @notice Redeems a given amount of shares for the equivalent amount of assets.
-   * @param shares The amount of shares to redeem.
    * @param receiver The address receiving the assets.
    * @param owner The address of the shares' owner.
    * @return assets The amount of assets redeemed.
    */
-  function redeem(uint256 shares, address receiver, address owner, uint256 id) external nonReentrant returns (uint256 assets) {
+  function redeem(address receiver, address owner, uint256 id) external nonReentrant returns (uint256 assets) {
     /* ---------------------------------- added --------------------------------- */
-    _verifyCooldownPeriod(id);
+    _processAndVerifyCooldownPeriod(id);
+    uint shares = requests[msg.sender][id].amount;
+
     /* ---------------------------------- added --------------------------------- */
 
     if (msg.sender != owner) {
@@ -228,36 +230,46 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   /*                             withdrawal requests                            */
   /* -------------------------------------------------------------------------- */
 
-
   event WithdrawalRequest(address indexed owner, uint256 id, uint256 amount);
-  error WithdrawalAlreadyRequested();
+  error WithdrawalRequestNotReady();
   error InsufficientBalance();
   error NoWithdrawalRequests();
+  error InvalidAmount();
+  error RequestAlreadyProcessed();
+  event CooldownPeriodUpdated(uint256 newCooldownPeriod);
 
   uint256 globalIds;
   uint256 public cooldownPeriod;
   mapping(address user => mapping(uint256 id => Request)) public requests;
-  mapping(address => uint) public availableBalance;
 
   struct Request {
     uint256 amount;
     uint256 timeOfRequest;
+    bool processed;
   }
 
   function setCooldownPeriod(uint256 timeInSeconds) external onlyOwner {
+    emit CooldownPeriodUpdated(timeInSeconds);
     cooldownPeriod = timeInSeconds;
   }
 
   function requestWithdrawOrRedeem(uint256 amount) external {
     if (balanceOf[msg.sender] < amount) revert InsufficientBalance();
-    requests[msg.sender][globalIds] = Request(amount, block.timestamp);
+    requests[msg.sender][globalIds] = Request(amount, block.timestamp, false);
     emit WithdrawalRequest(msg.sender, globalIds, amount);
     ++globalIds;
   }
 
-  function _verifyCooldownPeriod(uint256 id) internal view {
-    if (requests[msg.sender][id].timeOfRequest + cooldownPeriod < block.timestamp) {
-      revert WithdrawalAlreadyRequested();
-    }
+  function _processAndVerifyCooldownPeriod(uint256 id) internal {
+    Request storage request = requests[msg.sender][id];
+    if (request.processed) revert RequestAlreadyProcessed();
+    if (block.timestamp < request.timeOfRequest + cooldownPeriod) revert WithdrawalRequestNotReady();
+    if (request.amount == 0) revert InvalidAmount();
+    emit log(block.timestamp);
+    emit log(request.timeOfRequest + cooldownPeriod);
+    request.processed = true;
   }
+
+  event log(string);
+  event log(uint);
 }

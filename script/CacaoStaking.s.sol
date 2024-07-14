@@ -13,6 +13,8 @@ contract CacaoStakingDeploy is Script {
   CacaoStaking public staking;
 
   function run() external {
+    uint256 cooldownPeriod = 3 days;
+
     uint256 privateKey = vm.envUint("PRIVATE_KEY"); // Obtained from .env file
     address account = vm.addr(privateKey);
     console.log("Running script with account: ", account);
@@ -22,7 +24,7 @@ contract CacaoStakingDeploy is Script {
     console.log("mockToken deployed to: ", address(mockToken));
     console.log("mockToken balance of owner is: ", mockToken.balanceOf(account));
 
-    staking = new CacaoStaking(IERC20(address(mockToken)), account);
+    staking = new CacaoStaking(IERC20(address(mockToken)), account, cooldownPeriod);
     console.log("Staking contract deployed to: ", address(staking));
 
     vm.stopBroadcast();
