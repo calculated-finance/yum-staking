@@ -9,11 +9,11 @@ import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
- * @title CacaoStaking
+ * @title YUMStaking
  * @notice A staking contract that allows users to deposit an asset and receive shares in return.
  * @dev The contract is mainly a fork of vTHOR staking contract (https://github.com/thorswap/evm-contracts/blob/main/src/contracts/tokens/vTHOR.sol)
  */
-contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
+contract YUMStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   using SafeTransferLib for address;
   using FixedPointMathLib for uint256;
 
@@ -32,7 +32,7 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
    * @dev Initializes the staking contract with the given asset.
    * @param asset_ The asset to be staked.
    */
-  constructor(IERC20 asset_, address initialOwner, uint256 _cooldownPeriod) ERC20Vote("CacaoSwapStaking", "CSST", 18) Ownable(initialOwner) {
+  constructor(IERC20 asset_, address initialOwner, uint256 _cooldownPeriod) ERC20Vote("YUMStaking", "vYUM", 18) Ownable(initialOwner) {
     _asset = asset_;
     cooldownPeriod = _cooldownPeriod;
   }
@@ -96,16 +96,6 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   }
 
   /**
-   * @notice Previews the amount of shares required for a given amount of assets to withdraw.
-   * @param assets The amount of assets to withdraw.
-   * @return The amount of shares that would be required.
-   */
-  function previewWithdraw(uint256 assets) public view returns (uint256) {
-    uint256 supply = totalSupply;
-    return supply == 0 ? assets : assets.mulDivUp(supply, totalAssets());
-  }
-
-  /**
    * @notice Previews the amount of assets received for a given amount of shares.
    * @param shares The amount of shares to redeem.
    * @return The amount of assets that would be received.
@@ -115,21 +105,21 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   }
 
   /**
-   * @notice Returns the maximum amount of assets that can be withdrawn by a given owner.
-   * @param owner The address of the owner.
-   * @return The maximum amount of assets that can be withdrawn.
-   */
-  function maxWithdraw(address owner) public view returns (uint256) {
-    return convertToAssets(balanceOf[owner]);
-  }
-
-  /**
    * @notice Returns the maximum amount of shares that can be redeemed by a given owner.
    * @param owner The address of the owner.
    * @return The maximum amount of shares that can be redeemed.
    */
   function maxRedeem(address owner) public view returns (uint256) {
-    return balanceOf[owner];
+    uint256 currentBalance = balanceOf[owner];
+    Request[] storage requestedWithdrawals = requestsPerUser[owner];
+    uint256 totalRequested = 0;
+    for (uint256 i = 0; i < requestedWithdrawals.length; i++) {
+      if (requestedWithdrawals[i].status == RequestStatus.Pending) {
+        totalRequested += requestedWithdrawals[i].shares;
+      }
+    }
+    if (currentBalance < totalRequested) return 0;
+    return currentBalance - totalRequested;
   }
 
   /**
@@ -147,6 +137,7 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   function maxMint(address) external pure returns (uint256) {
     return type(uint256).max;
   }
+
   /* -------------------------------------------------------------------------- */
   /*                               core functions                               */
   /* -------------------------------------------------------------------------- */
@@ -181,39 +172,14 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   }
 
   /**
-   * @notice Withdraws a given amount of assets by burning the equivalent amount of shares.
-   * @param receiver The address receiving the assets.
-   * @param owner The address of the shares' owner.
-   * @return shares The amount of shares burned.
-   */
-  function withdraw(address receiver, address owner, uint256 id) public nonReentrant returns (uint256 shares) {
-    /* ---------------------------------- added --------------------------------- */
-    _processAndVerifyCooldownPeriod(id);
-    uint assets = requests[msg.sender][id].amount;
-    /* ---------------------------------- added --------------------------------- */
-
-    shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
-    if (msg.sender != owner) {
-      uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
-      if (allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
-    }
-    _burn(owner, shares);
-    emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    address(_asset).safeTransfer(receiver, assets);
-  }
-
-  /**
    * @notice Redeems a given amount of shares for the equivalent amount of assets.
    * @param receiver The address receiving the assets.
    * @param owner The address of the shares' owner.
    * @return assets The amount of assets redeemed.
    */
   function redeem(address receiver, address owner, uint256 id) external nonReentrant returns (uint256 assets) {
-    /* ---------------------------------- added --------------------------------- */
     _processAndVerifyCooldownPeriod(id);
-    uint shares = requests[msg.sender][id].amount;
-
-    /* ---------------------------------- added --------------------------------- */
+    uint shares = requests[msg.sender][id].shares;
 
     if (msg.sender != owner) {
       uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
@@ -227,25 +193,35 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                             withdrawal requests                            */
+  /*                             redeem requests                                */
   /* -------------------------------------------------------------------------- */
 
-  event WithdrawalRequest(address indexed owner, uint256 id, uint256 amount);
-  error WithdrawalRequestNotReady();
+  event RedeemRequest(address indexed owner, uint256 id, uint256 amount);
+  event CancelRequest(address indexed owner, uint256 id, uint256 amount);
+  error RedeemRequestNotReady();
   error InsufficientBalance();
   error NoWithdrawalRequests();
   error InvalidAmount();
   error RequestAlreadyProcessed();
+  error RequestCancelled();
   event CooldownPeriodUpdated(uint256 newCooldownPeriod);
 
   uint256 public globalIds;
   uint256 public cooldownPeriod;
   mapping(address user => mapping(uint256 id => Request)) public requests;
+  mapping(address user => Request[] requests) internal requestsPerUser;
+
+  enum RequestStatus {
+    Pending,
+    Processed,
+    Cancelled
+  }
 
   struct Request {
-    uint256 amount;
+    uint256 id;
+    uint256 shares;
     uint256 timeOfRequest;
-    bool processed;
+    RequestStatus status;
   }
 
   /**
@@ -258,14 +234,30 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
   }
 
   /**
-   * @notice Requests to withdraw or redeem a given amount of assets.
-   * @param amount The amount of assets to withdraw or redeem.
+   * @notice Requests to redeem a given amount of shares.
+   * @param amount The amount of shares to redeem.
    */
-  function requestWithdrawOrRedeem(uint256 amount) external {
-    if (balanceOf[msg.sender] < amount) revert InsufficientBalance();
-    requests[msg.sender][globalIds] = Request(amount, block.timestamp, false);
-    emit WithdrawalRequest(msg.sender, globalIds, amount);
+  function requestRedeem(uint256 amount) external {
+    if (maxRedeem(msg.sender) < amount) revert InsufficientBalance();
+    Request memory newRequest = Request(globalIds, amount, block.timestamp, RequestStatus.Pending);
+    requests[msg.sender][globalIds] = newRequest;
+    requestsPerUser[msg.sender].push(newRequest);
+    emit RedeemRequest(msg.sender, globalIds, amount);
     ++globalIds;
+  }
+
+  function cancelRequest(uint256 id) external {
+    Request storage request = requests[msg.sender][id];
+    if (request.status == RequestStatus.Processed) revert RequestAlreadyProcessed();
+    if (request.status == RequestStatus.Cancelled) revert RequestCancelled();
+    request.status = RequestStatus.Cancelled;
+    for (uint256 i = 0; i < requestsPerUser[msg.sender].length; i++) {
+      if (requestsPerUser[msg.sender][i].id == id) {
+        requestsPerUser[msg.sender][i].status = RequestStatus.Cancelled;
+        break;
+      }
+    }
+    emit CancelRequest(msg.sender, id, request.shares);
   }
 
   /**
@@ -274,9 +266,39 @@ contract CacaoStaking is ERC20Vote, ReentrancyGuard, Ownable2Step {
    */
   function _processAndVerifyCooldownPeriod(uint256 id) internal {
     Request storage request = requests[msg.sender][id];
-    if (request.processed) revert RequestAlreadyProcessed();
-    if (block.timestamp < request.timeOfRequest + cooldownPeriod) revert WithdrawalRequestNotReady();
-    if (request.amount == 0) revert InvalidAmount();
-    request.processed = true;
+    if (request.status == RequestStatus.Processed) revert RequestAlreadyProcessed();
+    if (request.status == RequestStatus.Cancelled) revert RequestCancelled();
+    if (block.timestamp < request.timeOfRequest + cooldownPeriod) revert RedeemRequestNotReady();
+    if (request.shares == 0) revert InvalidAmount();
+    request.status = RequestStatus.Processed;
+    for (uint256 i = 0; i < requestsPerUser[msg.sender].length; i++) {
+      if (requestsPerUser[msg.sender][i].id == id) {
+        requestsPerUser[msg.sender][i].status = RequestStatus.Processed;
+        break;
+      }
+    }
+  }
+
+  /**
+   * @notice Fetches active requests for a given user.
+   * @param user The address of the user.
+   * @return The requests for the user.
+   */
+  function fetchRequests(address user, RequestStatus status) external view returns (Request[] memory) {
+    uint256 count;
+    for (uint256 i = 0; i < requestsPerUser[user].length; i++) {
+      if (requestsPerUser[user][i].status == status) {
+        count++;
+      }
+    }
+    Request[] memory filteredRequests = new Request[](count);
+    uint256 index;
+    for (uint256 i = 0; i < requestsPerUser[user].length; i++) {
+      if (requestsPerUser[user][i].status == status) {
+        filteredRequests[index] = requestsPerUser[user][i];
+        index++;
+      }
+    }
+    return filteredRequests;
   }
 }

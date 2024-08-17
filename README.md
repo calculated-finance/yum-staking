@@ -2,7 +2,7 @@
 
 ## Overview
 
-The CacaoStaking contract is designed to allow users to stake a specific ERC20 token (referred to as the asset) and receive shares in return. These shares represent the user's stake in the contract and can be redeemed for the underlying asset at any time. The contract ensures secure and efficient handling of deposits, mints, withdrawals, and redemptions, providing a reliable staking mechanism for users. Maximum deposit and mint limits are set to the maximum possible value, allowing flexibility for users. The contract ensures accurate conversion between assets and shares and includes security features to protect user funds.
+The YUMStaking contract is designed to allow users to stake a specific ERC20 token (referred to as the asset) and receive shares in return. These shares represent the user's stake in the contract and can be redeemed for the underlying asset at any time. The contract ensures secure and efficient handling of deposits, mints, withdrawals, and redemptions, providing a reliable staking mechanism for users. Maximum deposit and mint limits are set to the maximum possible value, allowing flexibility for users. The contract ensures accurate conversion between assets and shares and includes security features to protect user funds.
 
 ## How It Works
 
@@ -30,4 +30,3 @@ Shares are a representation of the user’s stake and can be redeemed or used to
 ### Asset Conversion:
 
 The contract includes functions to convert between assets and shares, ensuring that users can easily determine the amount of shares they will receive for a given deposit or the amount of assets they will receive for a given redemption.
-
