@@ -3,7 +3,6 @@ pragma solidity 0.8.23;
 
 import {Script} from "forge-std/Script.sol";
 import {YUMStaking} from "../src/YUMStaking.sol";
-import {MockToken} from "../src/MockToken.sol";
 import {console} from "forge-std/Test.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 
@@ -18,14 +17,4 @@ contract DeployStaking is Script {
     new YUMStaking(IERC20(token), initialOwner, cooldownPeriod);
     vm.stopBroadcast();
   }
-
-  // address staking = 0x2BFDeD2599De2549e163dcFEFCD0d7f8a234Eb9e;
-  // YUMStaking stakingContract = YUMStaking(staking);
-
-  // function run() external {
-  //   uint256 privateKey = vm.envUint("PRIVATE_KEY"); // Obtained from .env file
-  //   vm.startBroadcast(privateKey);
-  //   stakingContract.setCooldownPeriod(5 seconds);
-  //   vm.stopBroadcast();
-  // }
 }
